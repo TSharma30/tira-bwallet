@@ -1,19 +1,13 @@
 import React, { useState } from "react";
 import { mnemonicToSeed } from "bip39";
 import { Wallet, HDNodeWallet } from "ethers";
-
-const WalletButton = ({ onClick, children }) => (
-  <button
-    onClick={onClick}
-    className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-1 transition duration-300 ease-in-out"
-  >
-    {children}
-  </button>
-);
+import axios from "axios";
+import { WalletButton } from "./WalletButton";
 
 export const EthWallet = ({ mnemonic }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [addresses, setAddresses] = useState([]);
+  const [balances, setBalances] = useState({}); // Store balances in an object
 
   const addWallet = async () => {
     const seed = await mnemonicToSeed(mnemonic);
@@ -24,6 +18,26 @@ export const EthWallet = ({ mnemonic }) => {
     const wallet = new Wallet(privateKey);
     setCurrentIndex(currentIndex + 1);
     setAddresses([...addresses, wallet.address]);
+  };
+
+  const ShowBalance = async (address) => {
+    const data = {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "eth_getBalance",
+      params: [address, "latest"]
+    };
+    try {
+      const response = await axios.post(
+        "https://eth-mainnet.g.alchemy.com/v2/D8zUpQeoifRTBIZ7DrY6ZbXCDLmxMjZC",
+        data
+      );
+      const balanceInWei = response.data.result;
+      const balanceInEth = parseFloat(balanceInWei) / 1e18; // Convert balance from Wei to ETH
+      setBalances({ ...balances, [address]: balanceInEth }); // Update balance state
+    } catch (error) {
+      console.error("Error fetching balance:", error);
+    }
   };
 
   return (
@@ -43,6 +57,18 @@ export const EthWallet = ({ mnemonic }) => {
               >
                 <span className="text-blue-600 font-semibold">ETH - </span>
                 {address}
+                <button
+                  onClick={() => ShowBalance(address)} // Correct onClick handling
+                  className="text-green-700 font-semibold py-0 px-0 bg-transparent"
+                >
+                  Show Balance
+                </button>
+               
+                {balances[address] !== undefined && (
+                  <div className="mt-0 font-bold text-blue-700">
+                    Balance: {balances[address]} ETH
+                  </div>
+                )}
               </li>
             ))}
           </ul>
